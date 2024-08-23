@@ -6,6 +6,7 @@ Created on Mon Oct 10 13:36:09 2022
 """
 
 """"
+Generates a custom 3-SAT problem Hamiltonian
 We have n bits, m 3-bit clauses.
 
 The 3SAT problem will be read from a file:
@@ -13,34 +14,19 @@ The 3SAT problem will be read from a file:
 for example, a file could read
 
 ########### 3sat.dat #################
-1 -2 3 1 2 -4 -4 5 -6
+1 -2 3
+1 2 -4                                           
+-4 5 -6
 ######################################
 
 the 3SAT statement it represents is
 (x1 OR NOT x2 OR X3) AND (X1 OR X2 OR NOT X4) AND (NOT X4 OR X5 OR NOT X6);
-the number is the index of the bit it references (maybe start from 0),
+the number is the index of the bit it references,
 the negative sign means its negation enters the clause.
 
-We can get m from 1/3*len() of the file data (m=3 in this case); 
-n from the |max()| of the data (n=6 in this case).
-We want to save the problem as an array separated into clauses
-[[1, -2, 3], [1, 2, -4], [-4, 5, -6]]
-
-
-Alternatively, the file could instead be of the form
-
-########### 3sat.dat #################
-1 -2 3
-1 2 -4                                            <---- I ENDED UP DOING THIS ONE!
--4 5 -6
-######################################
-
-to make it easier to read?
-
-
-
-NOTES: The algorith works. BUT ONLY if the bits in each clause (so each line in the data file) is written in ascending order in absolute value;
-this is fine because the or operation commutes. But the read_problem_statement() method of the class should still sort each row.
+NOTE: The algorith requires that the bits in each clause (each line in the data file) is written in ascending order in absolute value;
+this is still general because the or operation commutes. T
+he read_problem_statement() method of the class should be modified to sort each row.
 """
 
 import numpy as np
@@ -110,7 +96,7 @@ class SAT3:
         
     def calculate_H_parameters(self):
         pair_counts = {} #How often each pair shows up in the 3SAT problem (signed), {12: -1, 13: 2, ...}
-        triplet_counts = {}
+        three_counts = {}
                
         for i, clause in enumerate(zip(abs(self.statement),self.bit_signs)): #The literal information (+ or -) is lost from self.statement; but it was stored in bit_signs!
             
@@ -133,17 +119,17 @@ class SAT3:
                 pair_counts[pair[0]] += pair[1]
                       
                 
-            #Spin triplet term
-            triplet = tuple(clause[0]) #There is only one triplet per clause, so this is simpler than the pairs
-            triplet_sign = np.prod(clause[1]) #This is what we sum to the corresponding term
+            #Spin three body term
+            three = tuple(clause[0]) #There is only one such triplet per clause, so this is simpler than the pairs
+            three_sign = np.prod(clause[1]) #This is what we sum to the corresponding term
   
-            if triplet not in triplet_counts:
-                triplet_counts[triplet] = 0
+            if three not in three_counts:
+                three_counts[threes] = 0
 
-            triplet_counts[triplet] += triplet_sign
+            three_counts[three] += three_sign
   
         self.J_term = pair_counts
-        self.X_term = triplet_counts
+        self.X_term = three_counts
         
         
     
@@ -165,21 +151,12 @@ class SAT3:
             H += self.X_term[indices] * sigma(indices[0], self.N) * sigma(indices[1], self.N) * sigma(indices[2], self.N)
             
             
-        #H = qt.Qobj(H.data.reshape(2**self.N,2**self.N))
         identity_composite = sigma(0,self.N)
         return self.prefactor*(H+ self.M* identity_composite)
-        #For key,value in self.h_term:
-        #   if value is not 0:
-        #       Generate the corresponding operator indicated by the key via tensor products (*)
-        #       Add it into H with the corresponding coefficient given by value
-        #Create similar loops for the other terms
-        #
-        #
-        #
-        #(*) Not so simple! 
+
     
     def createInitialH(self):
-        #We create the transverse field Hamiltonian
+        #We create the transverse field Hamiltonian as in Chen et al.
         nbits=2
         H0 = 0
         i2x2 = qt.identity(2)
@@ -192,10 +169,11 @@ class SAT3:
         H0 = qt.Qobj(H0.data.reshape(4,4))
         psi0 = H0.groundstate()
         return H0, psi0
-        
-problem1 = SAT3("problem.txt")        
-problem1.calculate_H_parameters()
-H=problem1.create_problem_Hamiltonian()
+ 
+#TEST       
+#problem1 = SAT3("problem.txt")        
+#problem1.calculate_H_parameters()
+#H=problem1.create_problem_Hamiltonian()
         
         
         
